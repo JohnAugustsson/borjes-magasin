@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: borjes-magasin
+## Notes: Guild PvP, dungeon quests, gold and gear with hidden guild addon sync.
+## Author: ja
+## Version: 0.3.6
+## X-Curse-Project-ID: 1796534
+## SavedVariables: BorjesMagasinDB
+## IconTexture: Interface\AddOns\borjes-magasin\Textures\MinimapIcon
+
+Data.lua
+Profiler.lua
+Codec.lua
+Capture.lua
+Sync.lua
+UI.lua
+Guild.lua
+Core.lua

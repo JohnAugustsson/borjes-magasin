@@ -1,0 +1,3 @@
+tests/*.json
+tests/*-mock.png
+dist/
