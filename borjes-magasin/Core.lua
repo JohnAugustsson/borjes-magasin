@@ -13,12 +13,14 @@ local function initialize()
     SLASH_BORJESMAGASIN1, SLASH_BORJESMAGASIN2, SLASH_BORJESMAGASIN3 = "/borjes", "/bm", "/borjes-magasin"
     SlashCmdList.BORJESMAGASIN = function(message)
         local cmd = (message or ""):lower():match("^%s*(.-)%s*$")
-        if cmd == "debug" then BM.SyncReport()
+        if cmd == "selftest" then BM.StartSelfTest()
+        elseif cmd == "selftest report" then BM.SelfTestReport()
+        elseif cmd == "debug" then BM.SyncReport()
         elseif cmd:match("^profile") then BM.ProfileCommand(cmd:match("^profile%s+(%S+)$"))
         elseif cmd == "reset" then BM.ResetPosition(); BM.Open()
         elseif cmd == "sync" then BM.RequestSync(); say(BM.SyncStatus())
         elseif cmd == "share" then BM.ToggleSharing(); say(BM.SyncStatus())
-        elseif cmd == "help" then say("/borjes opens the guild ledger. /borjes sync requests snapshots. /borjes share pauses/resumes sharing. /borjes reset resets filters; it keeps your history. /bm profile start records performance; /bm profile report shows it.")
+        elseif cmd == "help" then say("/borjes opens the guild ledger. /borjes sync requests snapshots. /borjes share pauses/resumes sharing. /borjes reset resets filters; it keeps your history. /bm profile start records performance; /bm profile report shows it. /bm selftest runs a 15-second solo diagnostic; /bm selftest report repeats its results.")
         else BM.Toggle() end
     end
     BM.AttachGuildUI()
@@ -62,7 +64,7 @@ local function onEvent(_, event, ...)
         if BM.DB then BM.AttachGuildUI(); BM.HookCharacterPane() end
     elseif event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then login(); BM.MarkDirty(); rosterChanged()
     elseif not BM.DB then return
-    elseif event == "CHAT_MSG_ADDON" then BM.Receive(...)
+    elseif event == "CHAT_MSG_ADDON" then if not BM.ReceiveSelfTest(...) then BM.Receive(...) end
     elseif event == "PARTY_KILL" then BM.RecordKill(a, b)
     elseif event == "PLAYER_TARGET_CHANGED" then BM.ObserveEnemy("target")
     elseif event == "UPDATE_MOUSEOVER_UNIT" then BM.ObserveEnemy("mouseover")
@@ -77,7 +79,7 @@ local function onEvent(_, event, ...)
     elseif event == "GET_ITEM_INFO_RECEIVED" then BM.InvalidateItem(a, b)
     elseif event == "PLAYER_CAMPING" or event == "PLAYER_QUITING" then BM.PrepareLogout()
     elseif event == "LOGOUT_CANCEL" then BM.CancelLogout()
-    elseif event == "PLAYER_LOGOUT" then BM.SaveSyncReport(); BM.FlushLogout(); BM.StopProfile()
+    elseif event == "PLAYER_LOGOUT" then BM.EndSelfTest(); BM.SaveSyncReport(); BM.FlushLogout(); BM.StopProfile()
     else BM.MarkDirty() end
 end
 events:SetScript("OnEvent", function(...) return BM.ProfileCall("Events", onEvent, ...) end)

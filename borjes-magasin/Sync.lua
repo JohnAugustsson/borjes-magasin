@@ -54,6 +54,8 @@ function BM.SyncReport()
     local function say(message) DEFAULT_CHAT_FRAME:AddMessage("|cffe8ba6eborjes debug:|r " .. message) end
     say(BM.VERSION .. " / " .. report.status .. " / self " .. tostring(BM.SelfID))
     say("Sent " .. diagnostic.sent .. " / received " .. diagnostic.received .. " / accepted " .. diagnostic.accepted .. " snapshots / ticks " .. diagnostic.ticks)
+    say("Last send result " .. tostring(diagnostic.lastSendResult) .. " / restriction flag " .. tostring(diagnostic.restrictionFlag)
+        .. " / own echoes " .. (diagnostic.rejected["self echo"] or 0))
     say("Guild members " .. #report.roster .. " / party identities " .. #report.party .. " / filter " .. tostring(report.partyOnly))
     if diagnostic.error then say("Last error: " .. diagnostic.error) end
     for reason, count in pairs(diagnostic.rejected) do say("Ignored " .. reason .. ": " .. count) end
@@ -61,7 +63,7 @@ function BM.SyncReport()
 end
 function BM.GetHeartbeatMinutes()
     local value = BM.DB and BM.DB.heartbeatMinutes
-    return heartbeatOptions[value] and value or 0
+    return heartbeatOptions[value] and value or 15
 end
 function BM.ScheduleHeartbeat()
     heartbeatGeneration = heartbeatGeneration + 1
@@ -185,24 +187,26 @@ local function requested()
     end)
 end
 local function send(message)
-    local restricted = BM.Read(C_ChatInfo and C_ChatInfo.AreOutgoingAddonChatMessagesRestricted)
-    if restricted then
-        diagnostic.blocked = diagnostic.blocked + 1
-        record("client restriction", restricted)
-        BM.SyncError = "Client restricts addon messages"; notify(); return false
-    end
+    -- Forever 1.60.1 can report this flag as true while the ordinary API
+    -- succeeds and GUILD messages echo back. Retain it as an observation;
+    -- let SendAddonMessage enforce restrictions and use its actual result.
+    diagnostic.restrictionFlag = BM.Read(C_ChatInfo and C_ChatInfo.AreOutgoingAddonChatMessagesRestricted)
     local fn = C_ChatInfo and C_ChatInfo.SendAddonMessage
     local ok, result
     if type(fn) == "function" then ok, result = pcall(fn, BM.PREFIX, message, "GUILD") end
     if not ok then diagnostic.error = BM.Text(tostring(result or "SendAddonMessage missing"), 240) end
     if BM.Secret(result) then result = nil end
+    diagnostic.lastSendResult = ok and BM.Text(tostring(result), 80) or "API error"
     record("send", ok and tostring(result) or "API error")
     if ok and (result == true or result == 0) then
         diagnostic.sent = diagnostic.sent + 1
         BM.SyncError = nil; return true
     end
     if result == 3 or result == 8 then BM.SyncError = "Waiting for chat throttle"
-    elseif result == 11 then BM.SyncError = "Client restricts addon messages"
+    elseif result == 11 then
+        diagnostic.blocked = diagnostic.blocked + 1
+        record("client restriction", "SendAddonMessage: 11")
+        BM.SyncError = "Client restricts addon messages"
     elseif result == 10 then BM.SyncError = "Client reports no guild"
     else BM.SyncError = "Addon send unavailable (" .. tostring(result) .. ")" end
     notify()

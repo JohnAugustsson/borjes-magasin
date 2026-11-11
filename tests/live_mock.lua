@@ -61,6 +61,9 @@ return function(Mock, config)
         SendAddonMessage = function(prefix, message, channel)
             assert(channel == "GUILD", "Only hidden guild traffic is allowed")
             assert(#prefix + #message <= 254, "Chat payload exceeds limit")
+            -- The advisory restriction flag and the actual API result are
+            -- independent: Forever can report true while delivering messages.
+            Mock.sendAttempts = (Mock.sendAttempts or 0) + 1
             if Mock.sendResult and Mock.sendResult ~= 0 then return Mock.sendResult end
             Mock.sent[#Mock.sent + 1] = { prefix, message, channel, Mock.name .. "-" .. Mock.realm, at = Mock.clock }
             return 0

@@ -1,6 +1,6 @@
 local _, BM = ...
 
-BM.VERSION = "0.3.6"
+BM.VERSION = "0.3.8"
 BM.ClassColors = {
     WARRIOR = { .78, .61, .43 }, PALADIN = { .96, .55, .73 },
     HUNTER = { .67, .83, .45 }, ROGUE = { 1, .96, .41 },

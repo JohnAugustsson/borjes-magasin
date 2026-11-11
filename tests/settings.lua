@@ -17,7 +17,18 @@ end
 local bm, m, env = client()
 m.Advance(40)
 check(#m.sent > 0 and m.sent[1][2] == "1|H", "Login requests and sends guild snapshots")
-check(bm.GetHeartbeatMinutes() == 0, "Existing installations default to heartbeat off")
+check(bm.GetHeartbeatMinutes() == 15 and bm.DB.heartbeatMinutes == 15, "New installations save a 15-minute heartbeat by default")
+local firstSent = #m.sent
+m.Advance(859)
+check(#m.sent == firstSent, "Default heartbeat does not send before 15 minutes")
+m.Advance(20)
+check(#m.sent > firstSent and m.sent[firstSent + 1][2]:sub(1, 4) == "1|S|", "Default heartbeat sends own snapshot at 15 minutes")
+local upgraded = client({ sharing = true })
+check(upgraded.GetHeartbeatMinutes() == 15, "Existing installations without a saved interval use the new default")
+local explicitOff, offMock = client({ heartbeatMinutes = 0 })
+offMock.Advance(40); local offSent = #offMock.sent; offMock.Advance(31 * 60)
+check(explicitOff.GetHeartbeatMinutes() == 0 and #offMock.sent == offSent, "An explicit saved Off choice is preserved without periodic messages")
+bm.SetHeartbeatMinutes(0)
 local sent, captures, ticks = #m.sent, 0, 0
 local capture, tick = bm.Capture, bm.SyncTick
 bm.Capture = function(...) captures = captures + 1; return capture(...) end
@@ -73,7 +84,7 @@ check(#rm.sent == sent, "Reload preserves interval scheduling without an extra e
 rm.Advance(20)
 check(#rm.sent > sent, "Persisted heartbeat runs after reload")
 local invalid = client({ heartbeatMinutes = 7 })
-check(invalid.GetHeartbeatMinutes() == 0 and invalid.DB.heartbeatMinutes == 0, "Invalid saved settings migrate safely to off")
+check(invalid.GetHeartbeatMinutes() == 15 and invalid.DB.heartbeatMinutes == 15, "Invalid saved settings use the 15-minute default")
 bm.SetHeartbeatMinutes(0); sent = #m.sent
 m.guild = "NewGuild"; m.Fire("PLAYER_GUILD_UPDATE"); m.Advance(40)
 check(#m.sent == sent, "Changing guild after login does not trigger automatic sync")
@@ -99,9 +110,9 @@ cm.Fire("PLAYER_QUITING"); cm.Advance(.5); cm.Fire("LOGOUT_CANCEL")
 sent = #cm.sent; cm.Advance(40)
 check(#cm.sent == sent, "Cancelling logout stops its unfinished transfer")
 local restricted, xm = client(); xm.Advance(40); xm.gold = 321
-xm.restricted = true; sent = #xm.sent; xm.Fire("PLAYER_LOGOUT")
+xm.restricted = true; xm.sendResult = 11; sent = #xm.sent; xm.Fire("PLAYER_LOGOUT")
 check(#xm.sent == sent and restricted.SyncStatus() == "Client restricts addon messages", "Logout respects client message restrictions")
-local stalled, sm = client(); sm.restricted = true; sm.Advance(130)
+local stalled, sm = client(); sm.restricted = true; sm.sendResult = 11; sm.Advance(130)
 check(stalled.SyncStatus() == "Client restricts addon messages", "A failed transfer keeps its specific restriction reason")
 local calls = 0; local previousTick = stalled.SyncTick
 stalled.SyncTick = function(...) calls = calls + 1; return previousTick(...) end

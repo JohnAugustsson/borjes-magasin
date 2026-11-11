@@ -48,6 +48,9 @@ local function advance(a, b, seconds)
     for i = 1, seconds * 2 do a.m.Advance(.5); b.m.Advance(.5); relay(a, b); relay(b, a) end
 end
 local a, b = client("Suer Fisk", 123456), client("Bogge Tjogge", 654321, nil, true)
+-- Reproduce the actual 2026-11-11 client report: flag true, API Success (0),
+-- and spaced full sender names on observed guild/whisper echoes.
+a.m.restricted, b.m.restricted = true, true
 check(a.b.SelfName == "Suer Fisk", "The player's full name includes the surname, not just Suer")
 check(a.b.SelfID == "suer-fisk" and b.b.SelfID == "bogge-tjogge", "Canonical identity contains both name words and no local player's surname suffix")
 local all = a.b.FilterMembers("", "name")
@@ -65,6 +68,13 @@ check(a.b.State.partyOnly and shown == 2, "Actual Party only button renders the 
 advance(a, b, 40)
 check(a.b.GuildCache["bogge-tjogge"] and a.b.GetMember("bogge-tjogge").gold == 654321, "Hyphenated sender matches the spaced guild roster")
 check(b.b.GuildCache["suer-fisk"] and b.b.GetMember("suer-fisk").gold == 123456, "Spaced sender matches the other client's different surname")
+local successful = a.b.SaveSyncReport().diagnostic
+check(successful.restrictionFlag == true and successful.lastSendResult == "0" and successful.blocked == 0,
+    "True restriction flag is recorded without overriding actual send success")
+local accepted = successful.accepted
+for _, packet in ipairs(a.m.sent) do a.m.Fire("CHAT_MSG_ADDON", unpack(packet, 1, 4)) end
+check(successful.accepted == accepted and successful.rejected["self echo"] == #a.m.sent,
+    "Own guild echoes are observed without being counted as another member's snapshot")
 check(a.b.GetMember("bogge-fisk").gold == nil, "A received snapshot cannot be attached to a different surname")
 a.b.Receive(a.b.PREFIX, "1|H", "GUILD", "Bogge")
 a.b.Receive(a.b.PREFIX, "1|H", "GUILD", "Bogge Stranger")
@@ -105,8 +115,23 @@ check(migrated.b.PVP.allKills == 7 and migrated.b.DB.characters["suer-stone"].wi
 check(migrated.b.GuildCache["bogge-tjogge"].profile.gold == 999 and migrated.b.GuildCache["bogge-fisk"].profile.gold == 888, "Old erroneous realm suffixes migrate by full name and keep the newest snapshot")
 check(not migrated.b.GuildCache["bogge tjogge-fisk"], "Old duplicate cache keys no longer appear")
 local solo = client("Suer Fisk", 100)
-solo.m.restricted = true; solo.m.Advance(130)
+solo.m.restricted = true; solo.m.sendResult = 11; solo.m.Advance(130)
 local report = solo.b.SaveSyncReport()
 check(report.status == "Client restricts addon messages" and report.diagnostic.blocked > 0 and report.diagnostic.sent == 0, "Timeout preserves and records the actual client restriction")
+check(solo.m.sendAttempts > 0 and solo.m.sendAttempts <= 13 and report.diagnostic.blocked == solo.m.sendAttempts,
+    "Real refusals use bounded retries and count only actual API blocks")
+solo.m.restricted = false; solo.b.RequestSync(true); solo.m.Advance(5)
+check(solo.b.SyncStatus() == "Client restricts addon messages" and #solo.m.sent == 0,
+    "Actual API lockdown is respected even when the advisory flag is false")
 check(report.regionalNames == true and report.units[1].surname == "Fisk", "Diagnostics label surnames correctly")
+for _, code in ipairs({ 3, 8, 10 }) do
+    local failure = client("Suer Fisk", 100)
+    failure.m.restricted, failure.m.sendResult = true, code
+    failure.m.Advance(5)
+    check(#failure.m.sent == 0 and failure.m.sendAttempts == 1 and failure.b.SyncStatus() ==
+        (code == 10 and "Client reports no guild" or "Waiting for chat throttle"),
+        "Actual API failure " .. code .. " remains visible and rate limited")
+    failure.m.sendResult = 0; failure.m.Advance(30)
+    check(failure.b.LastSent and failure.b.SyncError == nil, "Send success recovers from API failure " .. code .. " while the flag remains true")
+end
 print(checks .. " Forever surname, migration and communication checks passed.")

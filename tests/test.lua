@@ -112,7 +112,7 @@ end
 BM.ShowTab("settings")
 local settings = BM.Window.pages.settings
 check(settings:IsVisible() and not BM.Window.partyFilter:IsVisible() and not BM.Window.searchBox:IsVisible(), "Settings has its own view without member filters")
-check(BM.GetHeartbeatMinutes() == 0, "Heartbeat defaults to off")
+check(BM.GetHeartbeatMinutes() == 15, "Heartbeat defaults to 15 minutes")
 for _, minutes in ipairs({ 5, 10, 15, 30, 0 }) do
     Mock.Click(settings.heartbeatButtons[minutes])
     check(BM.GetHeartbeatMinutes() == minutes and BM.DB.heartbeatMinutes == minutes, "Heartbeat setting is applied and persisted")

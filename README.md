@@ -1,6 +1,6 @@
 # borjes-magasin
 
-A dependency-free WoW Forever guild ledger, **version 0.3.6**, for Interface 16001.
+A dependency-free WoW Forever guild ledger, **version 0.3.8**, for Interface 16001.
 The roster and statistics now come from the client and guild addon messages.
 There are no built-in fictional members or statistics.
 
@@ -50,7 +50,9 @@ restrictions are shown explicitly. Progress updates do not rebuild the roster.
 
 Use `/bm debug` for live sync and party-filter diagnostics.
 The local report records the running version, queue state, packet counters,
-rejection reasons, API errors, and the guild/party names used for matching.
+rejection reasons, actual send result, advisory restriction flag, API errors,
+and the guild/party names used for matching. Own echoes are counted separately
+from accepted guild snapshots.
 It saves to `BorjesMagasinDB.lastSyncReport` on `/reload` or logout, never to guild
 chat. The event history is capped at 24 entries and contains no snapshot payloads.
 An error in a send timer now stops the queue with a visible error instead of
@@ -58,9 +60,17 @@ leaving it stuck on “Sync queued”; a manual request can retry. A client rest
 is recorded and remains visible after retries expire, rather than being replaced
 with a generic timeout. Correct names cannot override a client message restriction.
 
+Version 0.3.8 fixes an early-send check: a local Forever 1.60.1 test
+reported the outgoing restriction flag as true while the ordinary send API
+returned Success (0) and the GUILD/self-WHISPER probes echoed back. Normal sync
+now records that flag for diagnostics and uses the actual send result, retaining
+throttling, bounded retries and actual API lockdown handling. Self echoes do not
+prove delivery between accounts; that remains a separate live check.
+
 The **Settings** tab offers a heartbeat of **Off, 5, 10, 15 or 30 minutes**.
-It defaults to **Off**, including upgrades from versions with a fixed heartbeat.
-The choice is saved for this account. Changing it starts a new interval and
+As of version 0.3.7 it defaults to **15 minutes** when no valid choice is saved.
+Existing choices, including **Off**, are preserved. The choice is saved for this
+account. Changing it starts a new interval and
 cancels any unfinished heartbeat transfer. Pause sharing also stops heartbeats;
 resuming starts a fresh interval without an immediate broadcast.
 
@@ -145,6 +155,35 @@ not establish that this addon caused every slow frame. The profiler does not
 change WoW's global `scriptProfile` setting, collect messages/member details, or
 send results to guildmates or any server.
 
+## Solo sync diagnostic (0.3.8)
+
+After installing, `/reload`, run `/bm selftest` and wait 15 seconds. The report
+separates local profile codec validation, the actual send API return value, and
+an observed echo. It records raw returned sender names and whether they match
+your full character identity. `/bm selftest report` repeats the latest report.
+Use `/reload` afterward to write `BorjesMagasinDB.lastSelfTest` to SavedVariables
+for local inspection; a reload during the test marks it interrupted.
+
+The test makes at most three tiny, hidden addon-message attempts, one second
+apart: one GUILD probe and self-WHISPER probes addressed as `First Last` and
+`First-Last` on Forever. It uses a separate `BorjesDebug1` prefix containing only
+a unique test token, without gold, gear, quest data or synthetic members. No
+guildmate needs to install anything. A missing guild skips that probe. There are
+no retries or idle polling, and repeat runs have a 60-second cooldown.
+
+The restriction flag is recorded, then the ordinary send API is called once per
+probe so we can compare the flag with its actual behavior. Client/server
+restrictions remain enforced. This manual diagnostic can run while sharing is
+paused; it leaves that preference and the 15-minute default heartbeat unchanged.
+Normal guild sync also uses actual API results as of 0.3.8, with its
+existing throttling and bounded retry policy.
+
+API Success means acceptance, not delivery. A missing GUILD echo alone is
+inconclusive because self-echo behavior may differ from delivery to other
+players. A self-whisper echo confirms only the self route, not GUILD delivery or
+cross-account delivery. The codec test uses your actual local snapshot through
+the production pack/unpack functions; it does not simulate a second live client.
+
 ## Commands and storage
 
 - `/borjes`: toggle the guild ledger.
@@ -153,6 +192,8 @@ send results to guildmates or any server.
 - `/borjes reset`: reset search, party filter and obsolete positioning settings;
   keep actual statistics and snapshots.
 - `/borjes help`: show commands.
+- `/bm selftest`: run the manual solo diagnostic.
+- `/bm selftest report`: repeat the last solo diagnostic report.
 
 `BorjesMagasinDB` saves UI preferences, each local character's snapshot and
 counters, and received snapshots separated by guild and realm. Data for former
@@ -212,6 +253,7 @@ lua5.1 tests/settings.lua
 lua5.1 tests/realm.lua
 lua5.1 tests/surnames.lua
 lua5.1 tests/diagnostics.lua
+lua5.1 tests/selftest.lua
 for scenario in preloaded late failed combat; do lua5.1 tests/bootstrap.lua "$scenario"; done
 python tests/render_mock.py
 ```

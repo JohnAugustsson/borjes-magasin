@@ -80,7 +80,7 @@ solo.m.Advance(60)
 check(solo.b.Window.status:GetText() == "No guild replies received", "No responders is reported explicitly after the response window")
 solo.b.ToggleSharing(); solo.b.RequestSync(true)
 check(solo.b.Window.status:GetText() == "Sharing paused", "Clicking while paused explains why nothing is sent")
-solo.b.ToggleSharing(); solo.m.restricted = true; solo.b.RequestSync(true); solo.m.Advance(5)
+solo.b.ToggleSharing(); solo.m.restricted = true; solo.m.sendResult = 11; solo.b.RequestSync(true); solo.m.Advance(5)
 check(solo.b.Window.status:GetText() == "Client restricts addon messages", "Client send failures appear without waiting for another UI refresh")
 local invalidSender = "Unlisted-Fisk"
 b.b.Receive(b.b.PREFIX, "1|H", "GUILD", invalidSender)
