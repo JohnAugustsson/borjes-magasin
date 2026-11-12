@@ -242,6 +242,50 @@ not require that addon or Questie at runtime.
 
 ## Verification
 
+GitHub Actions runs the automated checks and builds an installable ZIP on every
+branch push, pull request and manual workflow run. Download the `addon-package`
+artifact from the run and extract its inner `borjes-magasin-<version>.zip`.
+These runs **do not upload a version to CurseForge**.
+
+To run the same checks and build locally (Python 3.10+ and Lua 5.1 required):
+
+```sh
+bash tools/check.sh
+python3 tools/package.py
+```
+
+Output goes to `dist/ci/`. The ZIP contains only TOC-listed runtime files, the
+minimap icon, README and changelog. It excludes tests, repository configuration,
+local reports and SavedVariables.
+
+### Publishing a future version
+
+The repository secret `CF_API_KEY` must contain a CurseForge author API token.
+Keep it in GitHub **Settings → Secrets and variables → Actions**, never in a
+file or workflow. The token is exposed only to the tag upload step.
+
+1. Update the version in the TOC, `Data.lua` and the introduction above, and add
+   that version's section to `CHANGELOG.md`. Commit and push the changes.
+2. Wait for the ordinary branch build to pass and inspect its ZIP if needed.
+3. Create and push a **new** tag exactly matching the addon version, such as
+   `v0.3.9` when the addon version is `0.3.9`.
+
+A new `v*` tag push runs the checks, verifies the tag/version/changelog match,
+then uploads the ZIP to CurseForge project **1796534**, for **WoW Forever 1.60.1**.
+Uploads keep the project's **Beta** classification (`-alpha.N` versions use
+Alpha) and publish after CurseForge processing/review. Change the mapping in
+`tools/package.py` deliberately when moving to another client version or Stable.
+No GitHub Release is created. Branch pushes, pull requests and **Run workflow**
+remain safe ways to test the build, even when the API secret is configured.
+
+Version 0.3.8 was uploaded manually before this workflow existed; do not tag it
+just to test the integration. Do not rerun a successful upload or move an old
+tag. If an upload times out, check CurseForge's files page before retrying to
+avoid duplicate files. Retrying a failed upload job is available after resolving
+its error; a newly successful upload is still subject to CurseForge review.
+
+### Individual checks and optional UI previews
+
 Run from this project directory:
 
 ```sh

@@ -1,3 +1,4 @@
 tests/*.json
 tests/*-mock.png
 dist/
+__pycache__/

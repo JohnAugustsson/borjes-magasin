@@ -1,0 +1,88 @@
+name: Test, package and publish
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and build ZIP
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install Lua 5.1
+        run: sudo apt-get update -qq && sudo apt-get install -y lua5.1
+      - name: Run addon and packaging tests
+        run: bash tools/check.sh
+      - name: Build installable ZIP and upload metadata
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$REF_TYPE" == tag ]]; then
+            python3 tools/package.py --tag "$REF_NAME"
+          else
+            python3 tools/package.py
+          fi
+      - name: Save preview artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: addon-package
+          path: dist/ci/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Upload new version to CurseForge
+    needs: build
+    if: >-
+      github.repository == 'JohnAugustsson/borjes-magasin' &&
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v') &&
+      github.event.created == true &&
+      github.event.deleted != true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: addon-package
+          path: package
+      - name: Upload tagged ZIP
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+        run: |
+          if [[ -z "$CF_API_KEY" ]]; then
+            echo '::error::Add the CF_API_KEY repository secret before publishing a new tag.'
+            exit 1
+          fi
+          archives=(package/*.zip)
+          [[ ${#archives[@]} == 1 && -f "${archives[0]}" ]]
+          # Do not retry this POST automatically: a timed-out request may have succeeded.
+          curl --fail-with-body --silent --show-error --max-time 180 \
+            --header "X-Api-Token: $CF_API_KEY" \
+            --form 'metadata=<package/metadata.json' \
+            --form "file=@${archives[0]};type=application/zip" \
+            --output response.json \
+            https://wow.curseforge.com/api/projects/1796534/upload-file
+          python3 - <<'PY'
+          import json
+          import os
+          with open('response.json') as response:
+              file_id = json.load(response)['id']
+          if not isinstance(file_id, int) or file_id <= 0:
+              raise SystemExit('CurseForge did not return a valid file ID; inspect the files page before retrying.')
+          url = f'https://authors.curseforge.com/#/projects/1796534/files/{file_id}'
+          print(f'Uploaded to CurseForge: {url}')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write(f'[CurseForge upload]({url}) — subject to CurseForge processing/review.\n')
+          PY
