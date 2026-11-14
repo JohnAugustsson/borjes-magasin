@@ -323,7 +323,23 @@ local function createGear(parent)
     p.level = label(panel, 215, 122, 172, 22, "", 13, C.text, "CENTER")
     p.spec = label(panel, 215, 147, 172, 18, "", 11, C.muted, "CENTER")
     p.zone = label(panel, 215, 172, 172, 18, "", 10, C.muted, "CENTER")
-    label(panel, 215, 211, 172, 18, "GEAR SNAPSHOT", 10, C.gold, "CENTER")
+    p.xpFrame = CreateFrame("Frame", nil, panel)
+    p.xpFrame:SetPoint("TOPLEFT", 215, -194); p.xpFrame:SetSize(172, 44)
+    p.xpTitle = label(p.xpFrame, 0, 0, 172, 13, "", 10, C.gold, "CENTER")
+    p.xpBar = surface(p.xpFrame, 0, 16, 172, 9, C.row, "StatusBar")
+    p.xpBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    p.xpBar:SetStatusBarColor(.48, .38, .78); p.xpBar:SetMinMaxValues(0, 1)
+    p.xpText = label(p.xpFrame, 0, 28, 172, 13, "", 10, C.text, "CENTER")
+    p.xpFrame:EnableMouse(true)
+    p.xpFrame:SetScript("OnEnter", function(self)
+        local m = self.member; if not m then return end
+        local lines = { "Last snapshot: " .. m.age }
+        if m.xp ~= nil then
+            lines[#lines + 1] = string.format("%d XP remaining to level %d.", m.xpMax - m.xp, m.level + 1)
+        else lines[#lines + 1] = "No XP for this level yet. The member needs the updated addon and a fresh sync." end
+        tooltip(self, "Experience", lines)
+    end)
+    p.xpFrame:SetScript("OnLeave", function() GameTooltip:Hide() end)
     function p:Refresh()
         rowsFor(self, members(BM.State.query, "name", "week", true), function(par, y, width)
             return memberRow(par, y, width, 34)
@@ -337,6 +353,15 @@ local function createGear(parent)
         setClass(self.portrait, m.class)
         self.level:SetText("Level " .. m.level .. " " .. m.className)
         self.spec:SetText(m.hasSnapshot and "Shared by member" or "Waiting for snapshot"); self.zone:SetText(m.zone)
+        self.xpFrame.member = m
+        self.xpFrame:SetShown(type(m.level) == "number" and m.level < BM.MAX_LEVEL)
+        self.xpTitle:SetText("XP PROGRESS")
+        self.xpBar:SetShown(m.xp ~= nil)
+        self.xpBar:SetValue(m.xp ~= nil and m.xp / m.xpMax or 0)
+        if m.xp ~= nil then
+            self.xpTitle:SetText(string.format("To level %d / %.1f%%", m.level + 1, m.xp / m.xpMax * 100))
+            self.xpText:SetText(string.format("%d / %d XP", m.xp, m.xpMax))
+        else self.xpText:SetText("XP not shared yet") end
         for i, slot in ipairs(self.slots) do
             local item = m.gear[i]; slot.item = item
             slot.slot:SetText(item.slot); slot.icon:SetTexture(item.icon)

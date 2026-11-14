@@ -1,6 +1,7 @@
 local _, BM = ...
 
-BM.VERSION = "0.3.8"
+BM.VERSION = "0.4.0"
+BM.MAX_LEVEL = 60
 BM.ClassColors = {
     WARRIOR = { .78, .61, .43 }, PALADIN = { .96, .55, .73 },
     HUNTER = { .67, .83, .45 }, ROGUE = { 1, .96, .41 },
@@ -262,6 +263,9 @@ function BM.BuildMembers()
             quests = {}, itemStrings = p and p.items, history = {}, kills = {}, age = "No snapshot" }, memberMeta)
         if p then
             m.hasSnapshot, m.gold, m.zone = true, p.gold, p.zone
+            m.level = id == BM.SelfID and p.level or math.max(tonumber(m.level) or 1, p.level)
+            -- A newer roster level must not inherit XP from the previous level.
+            if m.level < BM.MAX_LEVEL and p.level == m.level then m.xp, m.xpMax = p.xp, p.xpMax end
             m.age = BM.Age(p.at); m.received = cached and cached.received
             m.allKills, m.allGanks, m.weekKills, m.weekGanks = p.pvp.allKills, p.pvp.allGanks, 0, 0
             for _, b in ipairs(p.pvp.days) do

@@ -43,15 +43,17 @@ function BM.Decode(s)
     if ok and pos == #s + 1 then return result end
 end
 function BM.PackProfile(p, forComparison)
-    return BM.Encode({ 1, forComparison and 0 or p.at, p.level, p.class, p.zone, p.gold or false,
-        p.items, p.quests, { p.pvp.since, p.pvp.allKills, p.pvp.allGanks, p.pvp.days, p.pvp.recent }, p.history })
+    return BM.Encode({ 2, forComparison and 0 or p.at, p.level, p.class, p.zone, p.gold or false,
+        p.items, p.quests, { p.pvp.since, p.pvp.allKills, p.pvp.allGanks, p.pvp.days, p.pvp.recent }, p.history,
+        p.level < BM.MAX_LEVEL and p.xp ~= nil and p.xpMax ~= nil and { p.xp, p.xpMax } or false })
 end
 local function array(v, count) return type(v) == "table" and #v == count end
 local function text(v, max) return type(v) == "string" and #v <= max and BM.Text(v, max) == v end
 local function number(v, max) return BM.Integer(v, 0, max or 1000000000) end
 function BM.UnpackProfile(s)
     local v = BM.Decode(s)
-    if not array(v, 10) or v[1] ~= 1 or not number(v[2], 4102444800) then return end
+    if type(v) ~= "table" or not ((v[1] == 1 and array(v, 10)) or (v[1] == 2 and array(v, 11)))
+        or not number(v[2], 4102444800) then return end
     if not BM.Integer(v[2], 1, BM.Now() + 300) or not BM.Integer(v[3], 1, 100) or not BM.ClassColors[v[4]]
         or not text(v[5], 96) or (v[6] ~= false and not number(v[6], 100000000000)) then return end
     if not array(v[7], 19) or not array(v[8], #BM.QuestList) or not array(v[9], 5) or type(v[10]) ~= "table" or #v[10] > 7 then return end
@@ -75,6 +77,12 @@ function BM.UnpackProfile(s)
         if not array(d, 2) or not BM.Integer(d[1], 0, math.floor(v[2] / 86400)) or seen[d[1]] or not number(d[2], 100000000000) then return end
         seen[d[1]] = true
     end
+    local xp = v[11]
+    if xp ~= nil and xp ~= false then
+        if not array(xp, 2) or v[3] >= BM.MAX_LEVEL or not BM.Integer(xp[2], 1, 1000000000)
+            or not BM.Integer(xp[1], 0, xp[2]) then return end
+    end
     return { at = v[2], level = v[3], class = v[4], zone = v[5], gold = v[6] ~= false and v[6] or nil,
+        xp = xp and xp[1] or nil, xpMax = xp and xp[2] or nil,
         items = v[7], quests = v[8], pvp = { since = pvp[1], allKills = pvp[2], allGanks = pvp[3], days = pvp[4], recent = pvp[5] }, history = v[10] }
 end

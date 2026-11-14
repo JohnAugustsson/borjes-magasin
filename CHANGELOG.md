@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0 — 2026-11-14
+
+- Show XP progress below the character details in Gear: current/required XP,
+  percentage, next level and a bar. Hover for remaining XP and snapshot age.
+  Hide the section at level 60; unavailable XP is explicitly unknown.
+- Capture local XP on player XP/level events and normal snapshot refreshes.
+  XP-only events coalesce without rescanning gear/quests or sending extra traffic.
+- Include XP in validated schema-2 snapshots and preserve old saved history.
+  Older schema-1 snapshots remain readable, with no invented XP. Progress from
+  an earlier level is hidden when the guild roster reports a newer level.
+
+Guildmates must update to 0.4.0 and reload for two-way sharing: older versions
+cannot decode the new snapshot schema. Sync intervals remain unchanged.
+
 ## 0.3.8 — 2026-11-11
 
 - Fix sync stopping before sending when Forever reports an outgoing restriction

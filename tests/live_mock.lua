@@ -4,6 +4,7 @@ return function(Mock, config)
     Mock.clock, Mock.epoch, Mock.sent, Mock.scheduled = 0, 1794300000, {}, {}
     Mock.name, Mock.realm, Mock.guild = config.name or "Alice", "Forever", "TestGuild"
     Mock.gold, Mock.level, Mock.class, Mock.zone = config.gold or 1234567, 42, "WARRIOR", "Stranglethorn Vale"
+    Mock.xp, Mock.xpMax = 42000, 100000
     Mock.items = { [1] = "item:123:456:0:0:0:0:0:0:42", [16] = "item:789:0:0:0:0:0:0:0:42" }
     Mock.complete, Mock.quests = { [155] = true }, { [166] = { done = false, objectives = { { finished = false, numFulfilled = 0, numRequired = 1 } } } }
     Mock.roster = {
@@ -26,6 +27,8 @@ return function(Mock, config)
     UnitFullName = function(u) local v = unit(u); if v then return v.name, Mock.realm end end
     UnitGUID = function(u) local v = unit(u); return v and v.guid end
     UnitLevel = function(u) local v = unit(u); return v and v.level end
+    UnitXP = function(u) assert(u == "player"); return Mock.xp end
+    UnitXPMax = function(u) assert(u == "player"); return Mock.xpMax end
     UnitClass = function() return "Warrior", Mock.class end
     UnitFactionGroup = function() return "Alliance" end
     GetClassInfo = function(id) local names = { [1] = { "Warrior", "WARRIOR" }, [8] = { "Mage", "MAGE" }, [5] = { "Priest", "PRIEST" } }; return unpack(names[id] or { "Unknown", "UNKNOWN" }) end

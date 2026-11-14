@@ -44,7 +44,7 @@ end
 local eventNames = { "ADDON_LOADED", "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "PLAYER_LOGOUT", "PLAYER_CAMPING", "PLAYER_QUITING", "LOGOUT_CANCEL", "UI_SCALE_CHANGED", "DISPLAY_SIZE_CHANGED", "PLAYER_REGEN_ENABLED",
     "GUILD_ROSTER_UPDATE", "PLAYER_GUILD_UPDATE", "CLUB_ADDED", "CLUB_REMOVED", "CLUB_MEMBERS_UPDATED", "CLUB_MEMBER_ADDED", "CLUB_MEMBER_REMOVED", "CLUB_MEMBER_UPDATED", "CLUB_MEMBER_PRESENCE_UPDATED",
     "GROUP_ROSTER_UPDATE", "CHAT_MSG_ADDON", "PLAYER_MONEY", "PLAYER_EQUIPMENT_CHANGED", "UNIT_INVENTORY_CHANGED", "QUEST_LOG_UPDATE", "QUEST_TURNED_IN",
-    "PLAYER_LEVEL_UP", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "GET_ITEM_INFO_RECEIVED", "QUEST_DATA_LOAD_RESULT", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED", "PARTY_KILL" }
+    "PLAYER_LEVEL_UP", "PLAYER_XP_UPDATE", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "GET_ITEM_INFO_RECEIVED", "QUEST_DATA_LOAD_RESULT", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED", "PARTY_KILL" }
 for _, event in ipairs(eventNames) do events:RegisterEvent(event) end
 local rosterQueued = false
 local function rosterChanged()
@@ -76,6 +76,7 @@ local function onEvent(_, event, ...)
         if BM.PendingOpen then BM.Open() end
     elseif event == "UI_SCALE_CHANGED" or event == "DISPLAY_SIZE_CHANGED" then BM.ApplyScale(); BM.PositionLauncher()
     elseif event == "UNIT_INVENTORY_CHANGED" then if a == "player" then BM.MarkDirty() end
+    elseif event == "PLAYER_XP_UPDATE" then if a == "player" then BM.MarkDirty(true) end
     elseif event == "GET_ITEM_INFO_RECEIVED" then BM.InvalidateItem(a, b)
     elseif event == "PLAYER_CAMPING" or event == "PLAYER_QUITING" then BM.PrepareLogout()
     elseif event == "LOGOUT_CANCEL" then BM.CancelLogout()

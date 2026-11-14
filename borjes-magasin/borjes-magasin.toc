@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: borjes-magasin
-## Notes: Guild PvP, dungeon quests, gold and gear with hidden guild addon sync.
+## Notes: Guild PvP, dungeon quests, gold, gear and XP with hidden guild addon sync.
 ## Author: ja
-## Version: 0.3.8
+## Version: 0.4.0
 ## X-Curse-Project-ID: 1796534
 ## SavedVariables: BorjesMagasinDB
 ## IconTexture: Interface\AddOns\borjes-magasin\Textures\MinimapIcon

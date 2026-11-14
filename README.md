@@ -1,6 +1,6 @@
 # borjes-magasin
 
-A dependency-free WoW Forever guild ledger, **version 0.3.8**, for Interface 16001.
+A dependency-free WoW Forever guild ledger, **version 0.4.0**, for Interface 16001.
 The roster and statistics now come from the client and guild addon messages.
 There are no built-in fictional members or statistics.
 
@@ -112,8 +112,14 @@ on normal logout/reload. Canceling logout stops its unfinished transfer.
 - **Gear:** all 19 equipped inventory slots, preserving item strings including
   enchants and modifiers, with normal item tooltips. Empty and unknown slots
   are distinct. Item names/icons load from the receiving client's item cache.
+  Characters below level 60 also show current/required XP, a percentage and a
+  progress bar toward their next level. Hover it for remaining XP and snapshot
+  age. Level 60 characters have no XP section. Missing XP stays unknown, and a
+  newer guild-roster level hides progress from a previous-level snapshot.
 
-Gold, equipment and quests update locally on their relevant client events.
+Gold, equipment, quests and XP update locally on their relevant client events.
+XP events are combined into a lightweight update that avoids rescanning equipment
+and quests. They do not trigger a broadcast or add a repeating timer.
 Opening the character pane also refreshes your local snapshot. These updates,
 PvP kills, zoning and roster changes do not trigger a broadcast. Login, logout,
 manual requests and an optional heartbeat are the sync points. Data is captured
@@ -229,6 +235,12 @@ enabled heartbeat, login or manual sync can repair the loss. Guild changes disca
 pending traffic and restart a configured heartbeat interval; they do not send an
 immediate snapshot. Expired incoming assemblies are cleaned up on the next message.
 
+Version 0.4.0 uses snapshot schema 2 with a validated optional XP pair. It can
+read older schema-1 snapshots and saved history; those have no XP. Older addon
+versions cannot decode the new snapshots, so guildmates should update to 0.4.0
+and reload for continued two-way sharing. The transport and sync schedule are
+unchanged, and XP is included in the same complete snapshot as gear and gold.
+
 Forever API references:
 [chat](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/ChatInfoDocumentation.lua),
 [chat result enums](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/ChatConstantsDocumentation.lua),
@@ -298,6 +310,7 @@ lua5.1 tests/realm.lua
 lua5.1 tests/surnames.lua
 lua5.1 tests/diagnostics.lua
 lua5.1 tests/selftest.lua
+lua5.1 tests/xp.lua
 for scenario in preloaded late failed combat; do lua5.1 tests/bootstrap.lua "$scenario"; done
 python tests/render_mock.py
 ```

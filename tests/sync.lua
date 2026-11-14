@@ -30,6 +30,7 @@ check(b.b.GetMember("alice-forever").gold == 1234567, "Bob receives Alice's full
 check(a.b.GetMember("clara-forever").allKills == nil, "Non-addon / unobserved member remains unknown")
 check(a.b.GetMember("bob-forever").gear[1].link == b.m.items[1], "Enchants and item string survive transport")
 check(a.b.GetMember("bob-forever").quests.deadmines[1].status == 2, "Quest log status survives transport")
+check(a.b.GetMember("bob-forever").xp == 42000 and a.b.GetMember("bob-forever").xpMax == 100000, "XP reaches another client in the same complete snapshot")
 for _, c in ipairs({ a, b }) do
     for i, packet in ipairs(c.m.sent) do
         if i > 1 then check(packet.at - c.m.sent[i - 1].at >= .399, "Sending is throttled") end
@@ -37,6 +38,8 @@ for _, c in ipairs({ a, b }) do
     end
 end
 local m, bm, env = a.m, a.b, a.env
+m.xp = 55000; m.Fire("PLAYER_XP_UPDATE", "player"); m.Advance(2)
+check(b.b.GetMember("alice-forever").xp == 42000, "XP gain waits for existing sync points")
 check(bm.SelfProfile.quests[2][1] == 1, "Nil log index means not in log, not unavailable")
 check(bm.SelfProfile.quests[8][1] == 5, "Unfinished prerequisite is reported")
 check(bm.SelfProfile.quests[16][1] == 6, "Opposite faction quests are unavailable")
@@ -90,11 +93,13 @@ check(b.b.GetMember("alice-forever").gold == 1234567, "Local changes do not broa
 bm.RequestSync(); advance(a, b, 50)
 check(b.b.GetMember("alice-forever").allKills == 3, "Real captured counters arrive on the peer")
 check(b.b.GetMember("alice-forever").gold == 600000, "Manual sync shares the latest money")
+check(b.b.GetMember("alice-forever").xp == 55000, "Manual sync shares the latest XP")
 -- Serialize/reload with the same saved variables, using no shared runtime globals.
 local saved = a.env.BorjesMagasinDB
 local reloaded = client("Alice", 600000, saved)
 check(reloaded.b.PVP.allKills == 3 and reloaded.b.PVP.allGanks == 1, "Own counters survive reload")
 check(reloaded.b.GetMember("bob-forever").gold == 7654321, "Offline cache survives reload")
+check(reloaded.b.GetMember("bob-forever").xp == 42000, "Offline XP survives reload")
 reloaded.m.party = {}; reloaded.m.Fire("GROUP_ROSTER_UPDATE")
 check(#reloaded.b.FilterMembers("", "name", "week", true, true) == 1, "Party filter follows live group changes")
 local old = b.b.GuildCache["alice-forever"].wire

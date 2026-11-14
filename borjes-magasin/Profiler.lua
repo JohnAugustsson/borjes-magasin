@@ -66,7 +66,7 @@ function BM.InstallProfiler()
     if BM.ProfilerInstalled then return end
     BM.ProfilerInstalled = true
     -- These functions each return zero or one result. Preserve errors normally.
-    for _, name in ipairs({ "Capture", "UpdateRoster", "UpdateParty", "BuildMembers", "RebuildMembers", "Refresh", "GearView", "SyncTick", "Receive" }) do
+    for _, name in ipairs({ "Capture", "CaptureXP", "UpdateRoster", "UpdateParty", "BuildMembers", "RebuildMembers", "Refresh", "GearView", "SyncTick", "Receive" }) do
         local original = BM[name]
         BM[name] = function(...) return BM.ProfileCall(name, original, ...) end
     end

@@ -188,6 +188,11 @@ local function questState(q, level, faction)
     end
     return { 1, "Not in quest log; availability not confirmed" }
 end
+local function readXP(level)
+    if level >= BM.MAX_LEVEL then return end
+    local xp, maximum = BM.Read(UnitXP, "player"), BM.Read(UnitXPMax, "player")
+    if BM.Integer(maximum, 1, 1000000000) and BM.Integer(xp, 0, maximum) then return xp, maximum end
+end
 function BM.Capture()
     dirty = false
     if not BM.Character then return end
@@ -196,6 +201,7 @@ function BM.Capture()
     if not BM.Integer(level, 1, 100) or not BM.ClassColors[class] then return end
     local now, day = BM.Now(), BM.Day()
     local p = { at = now, level = level, class = class, zone = BM.Text(BM.Read(GetRealZoneText)), items = {}, quests = {}, pvp = BM.PVP, history = BM.History }
+    p.xp, p.xpMax = readXP(level)
     local gold = BM.Read(GetMoney)
     if BM.Integer(gold, 0, 100000000000) then p.gold = gold end
     local found
@@ -219,9 +225,27 @@ function BM.Capture()
     -- Local tracking does not schedule a guild broadcast.
     BM.RebuildMembers()
 end
-function BM.MarkDirty()
-    if dirty or not BM.Character then return end
-    dirty = true; C_Timer.After(1, function() if dirty then BM.Capture() end end)
+function BM.CaptureXP()
+    dirty = false
+    local p = BM.SelfProfile
+    if not p then return end
+    local level = BM.Read(UnitLevel, "player")
+    if not BM.Integer(level, 1, 100) then return end
+    if level ~= p.level then BM.Capture(); return end
+    local xp, maximum = readXP(level)
+    if xp == p.xp and maximum == p.xpMax then return end
+    p.xp, p.xpMax, p.at = xp, maximum, BM.Now()
+    BM.Character.wire = BM.PackProfile(p)
+    BM.RebuildMembers()
+end
+function BM.MarkDirty(xpOnly)
+    if not BM.Character then return end
+    local pending = dirty
+    dirty = (dirty == true or xpOnly ~= true) and true or "xp"
+    if pending then return end
+    C_Timer.After(1, function()
+        if dirty == "xp" then BM.CaptureXP() elseif dirty then BM.Capture() end
+    end)
 end
 function BM.ObserveEnemy(unit)
     if BM.Read(UnitIsPlayer, unit) ~= true or BM.Read(UnitCanAttack, "player", unit) ~= true then return end
